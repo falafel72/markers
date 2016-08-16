@@ -30,3 +30,6 @@ THRESH_OTSsites
 *.exe
 *.out
 *.appe
+
+#DS_STORE
+.DS_STORE

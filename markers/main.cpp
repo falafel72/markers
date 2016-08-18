@@ -80,6 +80,22 @@ int getQuadrant(Mat &marker) {
 	return -1;
 }
 
+Point getCenter(vector<Point> &poly) {
+	int avgX = 0;
+	int avgY = 0;
+	vector<Point>::iterator it = poly.begin();
+	vector<Point>::iterator itend = poly.end();
+	while(it != itend) {
+		avgX += (*it).x;
+		avgY += (*it).y;
+		++it; 
+	}
+	avgX /= poly.size();
+	avgY /= poly.size();
+	return Point(avgX, avgY);
+
+}
+
 void visSections(Mat &marker, int markerSize = 14) {
 	for(int row = 0; row < markerSize; row++) {
 		line(marker,Point(0,(row * marker.rows/markerSize)),Point(marker.rows,(row * marker.rows/markerSize)), Scalar(0,0,0));
@@ -168,11 +184,9 @@ int main(int argc, char **argv) {
 
 
 	//threshold image
-	int thresh = 40;
-
 	Mat thresholded;
 	threshold(image,thresholded,90,255,THRESH_BINARY_INV);
-	//imshow("thresholded",thresholded);
+	imshow("thresholded",thresholded);
 	
 	//perform opening of image to allow for better edge detection
 	Mat element = Mat(Size(3,3),CV_8U);
@@ -222,51 +236,23 @@ int main(int argc, char **argv) {
 	}
 
 	for(int i = 0; i < marks.size(); i++) {
-		//threshold to get contours
-		
+		//threshold ROI		
 		Mat markThresh;
 		threshold(marks[i],markThresh,90,255,THRESH_BINARY_INV);
-		Mat markThresh2 = markThresh.clone();
 
+		//move original polygon with the bounding rectangle
+		vector<Point> markPoly;
+		Mat(polygons[i]).copyTo(markPoly);
+		vector<Point>::iterator markPointPtr = markPoly.begin();
+		vector<Point>::iterator markPointPtrEnd = markPoly.end();
 
-		vector<vector<Point> > markContours;
-		vector<Vec4i> markHierarchy; 
-		findContours(markThresh, markContours, hierarchy, CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE, Point(0,0));
-
-
-		Mat markdraw = Mat::zeros(marks[i].size(), CV_8UC3);
-
-		drawContours(markdraw,markContours,-1,Scalar(255,255,255));
-
-
-		vector<Point> markPoly; 
-		vector<Point> markContour;
-		//vector<Rect> markRect;
-		for(int i = 0; i < markContours.size() ; i++) {
-				//estimate with polygon to get new coordinates
-			vector<Point> poly;
-			approxPolyDP(Mat(markContours[i]), poly, 5, true);
-			Scalar color(255,255,255);
-			if(poly.size() == 4) {
-				if(contourArea(markContours[i]) > 2000) {
-					markPoly = poly;
-					markContour = markContours[i];
-					//drawContours(markdraw,markContours,i,Scalar(255,255,255));
-				}
-			}
-		}
-		
-		//imshow("poly"+to_string(i),markdraw);
-
-		//if no polygons detected, move to the next "marker"
-		if(markContour.size() == 0) {
-			cerr << "Region invalid" << endl;
-			continue;
+		for(; markPointPtr != markPointPtrEnd; markPointPtr++) {
+			(*markPointPtr).x = (*markPointPtr).x - boundingRects[i].x;
+			(*markPointPtr).y = (*markPointPtr).y - boundingRects[i].y;
 		}
 
 		//get center of polygon
-	  	Moments m = moments(markContour);
-		center = Point(m.m10/m.m00, m.m01/m.m00);
+	  	center = getCenter(markPoly);
 		vector<Point2f> markPolyf;
 	 	Mat(markPoly).copyTo(markPolyf);
 		//sort corners clockwise	  
@@ -286,7 +272,7 @@ int main(int argc, char **argv) {
 		//get transformation matrix and wrap perspective
 		Mat transform = getPerspectiveTransform(markPolyf,markRect);
 		Mat warped;
-		warpPerspective(markThresh2,warped,transform,Size(dimensions[0], dimensions[1]));
+		warpPerspective(markThresh,warped,transform,Size(dimensions[0], dimensions[1]));
 
 		//draw lines
 		visSections(warped);

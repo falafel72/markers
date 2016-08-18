@@ -48,16 +48,9 @@ bool isMarker(Mat &markerCode) {
 		if(col == 0 || col == mask.cols-1 || col == mask.cols/2 - 1 || (mask.cols % 2 == 0 && col == mask.cols/2)) {
 			(*it) = 0;
 		}
-		//cout << counter << " " << *it << endl;	
 	}
 	Mat bitOr = Mat(markerCode.size(), CV_8UC1);
-	//cout << mask << endl;
 	bitwise_or(markBin,mask,bitOr);
-	//cout << markBin << endl;
-	//cout << mask << endl;
-	//cout << bitOr << endl;
-	//cout << (mask!=bitOr) << endl;
-	
 	return countNonZero(mask!=bitOr) == 0;
 }
 
@@ -72,7 +65,6 @@ Mat getCode(Mat &marker, int markerSize=14) {
 			it++;
 		}
 	}
-	//code.convertTo(code,);
 	return code;
 }
 
@@ -81,7 +73,7 @@ int getQuadrant(Mat &marker) {
 	for(int i = 0; i < 4; i++) {
 		temp = imread("templates/" + to_string(i) + ".bmp", CV_8UC1);
 		if(countNonZero(temp!=marker) == 0) {
-			return (i >= 90) ? 180-i : i ;
+			return i ;
 		}
 	}
 
@@ -118,8 +110,8 @@ void denoisify(Mat &in, Mat &out) {
 float getAngle(Point2f &a, Point2f &b) {
 	//float gradient = (b.y - a.y)/(b.x-a.x);
 	float angleRad = atan2(a.y - b.y, a.x - b.x);
-	float angleDeg = angleRad * 180/M_PI;
-	return angleDeg;
+	//float angleDeg = angleRad * 180/M_PI;
+	return angleRad;
 }
 
 vector<string> getCalibFiles() {
@@ -180,7 +172,7 @@ int main(int argc, char **argv) {
 
 	Mat thresholded;
 	threshold(image,thresholded,90,255,THRESH_BINARY_INV);
-	imshow("thresholded",thresholded);
+	//imshow("thresholded",thresholded);
 	
 	//perform opening of image to allow for better edge detection
 	Mat element = Mat(Size(3,3),CV_8U);
@@ -264,7 +256,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		
-		imshow("poly"+to_string(i),markdraw);
+		//imshow("poly"+to_string(i),markdraw);
 
 		//if no polygons detected, move to the next "marker"
 		if(markContour.size() == 0) {
@@ -307,9 +299,9 @@ int main(int argc, char **argv) {
 		int quad = getQuadrant(code);
 		float offsetAngle = getAngle(markPolyf[1], markPolyf[2]);
 		cout << offsetAngle << endl;
-		float angle = 90*quad - offsetAngle;
-		if(angle >= 360) angle -= 360;
-		if(angle < 0) angle += 360;
+		float angle = M_PI/2 * quad - offsetAngle;
+		if(angle >= 2*M_PI) angle -= 2*M_PI;
+		if(angle < 0) angle += 2*M_PI;
 		cout << "rotation: " << angle << endl;
 	}
 	waitKey();
